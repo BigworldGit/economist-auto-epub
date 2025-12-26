@@ -24,34 +24,32 @@ HEADERS = {
 
 # ================== GitHub 部分 ==================
 
-def get_latest_epub_url():
+def get_latest_epub():
     resp = requests.get(BASE_REPO_API, timeout=30)
     resp.raise_for_status()
     folders = [x for x in resp.json() if x["type"] == "dir"]
 
-    # 按文件夹名排序（te_2025.12.27）
     folders.sort(key=lambda x: x["name"])
     latest_folder = folders[-1]
 
-    folder_api = latest_folder["url"]
-    resp = requests.get(folder_api, timeout=30)
+    resp = requests.get(latest_folder["url"], timeout=30)
     resp.raise_for_status()
 
     epubs = []
     for f in resp.json():
         if f["name"].lower().endswith(".epub"):
-            epubs.append(f)
+            m = re.search(r"(\d{4})\.(\d{2})\.(\d{2})", f["name"])
+            if m:
+                date = datetime.strptime(m.group(0), "%Y.%m.%d")
+                epubs.append((date, f))
 
     if not epubs:
-        raise RuntimeError("未找到 epub 文件")
+        raise RuntimeError("未找到可解析日期的 epub 文件")
 
-    # 按文件名中的日期排序
-    def extract_date(name):
-        m = re.search(r"\d{4}\.\d{2}\.\d{2}", name)
-        return m.group() if m else ""
+    epubs.sort(key=lambda x: x[0])
+    latest = epubs[-1][1]
 
-    epubs.sort(key=lambda x: extract_date(x["name"]))
-    return epubs[-1]["download_url"]
+    return latest["download_url"], latest["name"]
 
 # ================== 转换部分 ==================
 
@@ -78,28 +76,28 @@ def convert_epub(input_url):
 
     raise TimeoutError("转换超时")
 
-def download_file(url):
+def download_file(url, filename):
     r = requests.get(url, stream=True)
     r.raise_for_status()
-    with open(OUTPUT_FILE, "wb") as f:
+    with open(filename, "wb") as f:
         for chunk in r.iter_content(8192):
             f.write(chunk)
 
 # ================== 邮件部分 ==================
 
-def send_mail():
+def send_mail(filename):
     msg = EmailMessage()
     msg["Subject"] = "Economist Weekly EPUB"
     msg["From"] = EMAIL_USER
     msg["To"] = EMAIL_TO
-    msg.set_content("本周 Economist 已自动生成（可在多看正常打开）")
+    msg.set_content("本周 Economist 已自动生成（保持原始文件名）")
 
-    with open(OUTPUT_FILE, "rb") as f:
+    with open(filename, "rb") as f:
         msg.add_attachment(
             f.read(),
             maintype="application",
             subtype="epub+zip",
-            filename=OUTPUT_FILE
+            filename=filename
         )
 
     with smtplib.SMTP_SSL("smtp.126.com", 465) as s:
@@ -109,10 +107,10 @@ def send_mail():
 # ================== main ==================
 
 def main():
-    epub_url = get_latest_epub_url()
+    epub_url, epub_name = get_latest_epub()
     output_url = convert_epub(epub_url)
-    download_file(output_url)
-    send_mail()
+    download_file(output_url, epub_name)
+    send_mail(epub_name)
 
 if __name__ == "__main__":
     main()
