@@ -88,10 +88,10 @@ def download_file(url, filename):
 
 def send_mail(filename):
     msg = EmailMessage()
-    msg["Subject"] = "Economist Weekly EPUB"
+    msg["Subject"] = "Economist Weekly File"
     msg["From"] = EMAIL_USER
     msg["To"] = EMAIL_TO
-    msg.set_content("本周 Economist 已自动生成（保持原始文件名）")
+    msg.set_content("本周 Economist 已自动生成。")
 
     with open(filename, "rb") as f:
         msg.add_attachment(
