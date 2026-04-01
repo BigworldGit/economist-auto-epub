@@ -90,7 +90,14 @@ def send_mail(filename):
     msg = EmailMessage()
     msg["Subject"] = "Economist Weekly File"
     msg["From"] = EMAIL_USER
-    msg["To"] = EMAIL_TO
+
+    # 兼容逗号、回车、空格等多种分隔符
+    if EMAIL_TO:
+        valid_emails = [e.strip() for e in re.split(r'[,\n\r]+', EMAIL_TO) if e.strip()]
+        msg["To"] = ", ".join(valid_emails)
+    else:
+        msg["To"] = ""
+
     msg.set_content("本周 Economist 已自动生成。")
 
     with open(filename, "rb") as f:
