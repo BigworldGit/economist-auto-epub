@@ -2,7 +2,7 @@ name: Economist Weekly EPUB
 
 on:
   schedule:
-    - cron: '0 4 * * 5'   # UTC 4 = 北京时间 12:00
+    - cron: '17 4 * * 5'  # UTC 4:17 = 北京时间 12:17
   workflow_dispatch:
 
 jobs:
