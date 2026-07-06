@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '17 4 * * 5'  # UTC 4:17 = 北京时间 12:17
   workflow_dispatch:
+    inputs:
+      issue_date:
+        description: "Optional issue date in YYYY.MM.DD or YYYY-MM-DD"
+        required: false
+        type: string
 
 jobs:
   run:
@@ -26,4 +31,5 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          ISSUE_DATE: ${{ github.event.inputs.issue_date }}
         run: python main.py

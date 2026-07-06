@@ -11,6 +11,7 @@ API_KEY = os.getenv("API2CONVERT_KEY")
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 EMAIL_TO = os.getenv("EMAIL_TO")
+ISSUE_DATE = os.getenv("ISSUE_DATE", "").strip()
 
 # ========= 常量 =========
 BASE_REPO_API = "https://api.github.com/repos/hehonghui/awesome-english-ebooks/contents/01_economist"
@@ -25,13 +26,35 @@ HEADERS = {
 
 # ================== GitHub 部分 ==================
 
-def get_latest_epub():
-    resp = requests.get(BASE_REPO_API, timeout=30)
+def parse_issue_date(issue_date):
+    if not issue_date:
+        return ""
+
+    normalized = issue_date.replace("-", ".").strip()
+    if not re.fullmatch(r"\d{4}\.\d{2}\.\d{2}", normalized):
+        raise ValueError("ISSUE_DATE 必须是 YYYY.MM.DD 或 YYYY-MM-DD")
+
+    return normalized
+
+def get_issue_folder_url(issue_date):
+    if issue_date:
+        return f"{BASE_REPO_API}/te_{issue_date}"
+
+    return BASE_REPO_API
+
+def get_latest_epub(issue_date=""):
+    resp = requests.get(get_issue_folder_url(""), timeout=30)
     resp.raise_for_status()
     folders = [x for x in resp.json() if x["type"] == "dir"]
 
-    folders.sort(key=lambda x: x["name"])
-    latest_folder = folders[-1]
+    if issue_date:
+        folder_name = f"te_{issue_date}"
+        latest_folder = next((x for x in folders if x["name"] == folder_name), None)
+        if latest_folder is None:
+            raise RuntimeError(f"未找到指定期号目录: {folder_name}")
+    else:
+        folders.sort(key=lambda x: x["name"])
+        latest_folder = folders[-1]
 
     resp = requests.get(latest_folder["url"], timeout=30)
     resp.raise_for_status()
@@ -115,7 +138,8 @@ def send_mail(filename):
 # ================== main ==================
 
 def main():
-    epub_url, epub_name = get_latest_epub()
+    normalized_issue_date = parse_issue_date(ISSUE_DATE)
+    epub_url, epub_name = get_latest_epub(normalized_issue_date)
     output_url = convert_epub(epub_url)
     download_file(output_url, epub_name)
     send_mail(epub_name)
