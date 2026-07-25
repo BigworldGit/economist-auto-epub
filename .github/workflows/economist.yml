@@ -1,8 +1,8 @@
 name: Economist Weekly EPUB
 
 on:
-  schedule:
-    - cron: '17 4 * * 5'  # UTC 4:17 = 北京时间 12:17
+  # cron-job.org dispatches this workflow every Friday to avoid GitHub's
+  # scheduled-workflow inactivity suspension and duplicate emails.
   workflow_dispatch:
     inputs:
       issue_date:
