@@ -1,19 +1,22 @@
 name: Economist Weekly EPUB
 
 on:
-  # cron-job.org dispatches this workflow every Friday to avoid GitHub's
-  # scheduled-workflow inactivity suspension and duplicate emails.
+  # cron-job.org dispatches this workflow once every Friday.
   workflow_dispatch:
     inputs:
       issue_date:
-        description: "Optional issue date in YYYY.MM.DD or YYYY-MM-DD"
+        description: "Optional catch-up cutoff date in YYYY.MM.DD or YYYY-MM-DD"
         required: false
         type: string
       wait_for_current_issue:
-        description: "Only send the current week's issue when it is available"
+        description: "Legacy compatibility input for cron-job.org"
         required: false
-        default: false
+        default: true
         type: boolean
+
+concurrency:
+  group: economist-weekly-email
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -30,40 +33,17 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Determine current issue date
-        id: expected_issue
-        if: github.event.inputs.wait_for_current_issue == 'true'
+      - name: Determine catch-up cutoff date
+        id: target_issue
         run: |
-          issue_date="$(python -c 'from datetime import datetime, timedelta; from zoneinfo import ZoneInfo; today = datetime.now(ZoneInfo("Asia/Shanghai")).date(); days = -1 if today.weekday() == 6 else (5 - today.weekday()) % 7; print((today + timedelta(days=days)).strftime("%Y.%m.%d"))')"
+          issue_date="$(python -c 'from datetime import datetime, timedelta; from zoneinfo import ZoneInfo; today = datetime.now(ZoneInfo("Asia/Shanghai")).date(); print((today + timedelta(days=(5 - today.weekday()) % 7)).strftime("%Y.%m.%d"))')"
           echo "date=${issue_date}" >> "$GITHUB_OUTPUT"
 
-      - name: Restore sent issue marker
-        id: sent_issue
-        if: github.event.inputs.wait_for_current_issue == 'true'
-        uses: actions/cache/restore@v4
-        with:
-          path: .economist-sent
-          key: economist-sent-${{ steps.expected_issue.outputs.date }}
-
-      - name: Run script
-        if: github.event.inputs.wait_for_current_issue != 'true' || steps.sent_issue.outputs.cache-hit != 'true'
+      - name: Send all available unsent issues
         env:
           API2CONVERT_KEY: ${{ secrets.API2CONVERT_KEY }}
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          ISSUE_DATE: ${{ github.event.inputs.issue_date || steps.expected_issue.outputs.date }}
+          ISSUE_DATE: ${{ inputs.issue_date || steps.target_issue.outputs.date }}
         run: python main.py
-
-      - name: Record sent issue
-        if: github.event.inputs.wait_for_current_issue == 'true' && steps.sent_issue.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p .economist-sent
-          touch ".economist-sent/${{ steps.expected_issue.outputs.date }}"
-
-      - name: Save sent issue marker
-        if: github.event.inputs.wait_for_current_issue == 'true' && steps.sent_issue.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: .economist-sent
-          key: economist-sent-${{ steps.expected_issue.outputs.date }}
