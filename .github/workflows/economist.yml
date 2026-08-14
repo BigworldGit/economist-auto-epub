@@ -1,8 +1,9 @@
 name: Economist Weekly EPUB
 
 on:
-  schedule:
-    - cron: '0 10 * * 5'   # UTC 10:00 = 北京时间 (Asia/Shanghai) 周五 18:00
+  # cron-job.org dispatches this workflow once every Friday at 18:00 Beijing
+  # time (Asia/Shanghai, i.e. 10:00 UTC). GitHub's built-in schedule is not
+  # used because it gets disabled after 60 days of repo inactivity.
   workflow_dispatch:
     inputs:
       issue_date:
