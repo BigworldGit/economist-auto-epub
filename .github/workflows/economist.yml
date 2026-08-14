@@ -1,7 +1,8 @@
 name: Economist Weekly EPUB
 
 on:
-  # cron-job.org dispatches this workflow once every Friday.
+  schedule:
+    - cron: '0 10 * * 5'   # UTC 10:00 = 北京时间 (Asia/Shanghai) 周五 18:00
   workflow_dispatch:
     inputs:
       issue_date:
@@ -9,7 +10,7 @@ on:
         required: false
         type: string
       wait_for_current_issue:
-        description: "Legacy compatibility input for cron-job.org"
+        description: "Legacy compatibility input"
         required: false
         default: true
         type: boolean
